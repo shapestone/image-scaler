@@ -1,6 +1,5 @@
 var fs = require('fs');
 var gm = require('gm');
-var Q = require('q');
 
 var urlBase = "/images";
 
@@ -58,10 +57,6 @@ var createFilePath = function(filePath, urlParts, w, h) {
 /*
  * Image API
  */
-var stat = Q.denodeify(fs.stat);
-var readFile = Q.denodeify(fs.readFile);
-var deferred = Q.defer();
-
 exports.getImage = function (req, res) {
   var w = null;
   var h = null;
@@ -90,10 +85,18 @@ exports.getImage = function (req, res) {
   fs.stat(cacheFilePath, function(err, stats) {
     if(stats && stats.isFile()) {
       // file exist
-      fs.readFile(cacheFilePath, function (error, file) {
-        var imageData = new Buffer(file);
-        res.writeHead(200, {'content-type': mime});
-        res.write(imageData);
+      res.writeHead(200, {'content-type': mime});
+      var stream = fs.createReadStream(cacheFilePath, {
+        'bufferSize': 10000 * 1024
+      }).pipe(res);
+
+      stream.on('end', function() {
+        res.end();
+      });
+
+      stream.on('error', function(err) {
+        console.log(err);
+        // todo: send HTTP status
         res.end();
       });
     } else {
@@ -103,10 +106,22 @@ exports.getImage = function (req, res) {
         .write(cacheFilePath, function (err) {
           if (!err) {
             fs.readFile(cacheFilePath, function (error, file) {
-              var imageData = new Buffer(file);
+
               res.writeHead(200, {'content-type': mime});
-              res.write(imageData);
-              res.end();
+              var stream = fs.createReadStream(cacheFilePath, {
+                'bufferSize': 10000 * 1024
+              }).pipe(res);
+
+              stream.on('end', function() {
+                res.end();
+              });
+
+              stream.on('error', function(err) {
+                console.log(err);
+                // todo: send HTTP status
+                res.end();
+              });
+
             });
           } else {
             console.log("error: " + err);
@@ -116,28 +131,4 @@ exports.getImage = function (req, res) {
       );
     }
   });
-
-  /*
-    // an attempt at using Q
-    stat('cache/sunflower.jpg')
-    .then(function(stats) {
-      if(stats && ! stats.isFile()) {
-        gm('data/sunflower.jpg')
-          .resize(190, 60)
-          .write('cache/sunflower.jpg', function (err) {
-            deferred.resolve();
-          });
-      }
-    })
-    .then(function() {
-      readFile('cache/sunflower.jpg')
-        .then(function(error, file) {
-          var imageData = new Buffer(file);
-          res.writeHead(200, {'content-type': 'image/jpeg'});
-          res.write(imageData);
-          res.end();
-        });
-    });
-*/
-
 };
