@@ -85,7 +85,7 @@ exports.getImage = function (req, res) {
   fs.stat(cacheFilePath, function(err, stats) {
     if(stats && stats.isFile()) {
       // file exist
-      res.writeHead(200, {'content-type': mime});
+      res.writeHead(200, {'content-type': mime, 'Content-Length': stats.size});
       var stream = fs.createReadStream(cacheFilePath, {
         'bufferSize': 10000 * 1024
       }).pipe(res);
@@ -105,9 +105,8 @@ exports.getImage = function (req, res) {
         .resize(w, h)
         .write(cacheFilePath, function (err) {
           if (!err) {
-            fs.readFile(cacheFilePath, function (error, file) {
-
-              res.writeHead(200, {'content-type': mime});
+            fs.stat(cacheFilePath, function(err, stats) {
+              res.writeHead(200, {'Content-Type': mime, 'Content-Length': stats.size});
               var stream = fs.createReadStream(cacheFilePath, {
                 'bufferSize': 10000 * 1024
               }).pipe(res);
@@ -121,7 +120,6 @@ exports.getImage = function (req, res) {
                 // todo: send HTTP status
                 res.end();
               });
-
             });
           } else {
             console.log("error: " + err);
